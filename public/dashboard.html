@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventarizatsiya Platformasi</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header>
+  <h1>🏛️ Inventarizatsiya</h1>
+  <nav>
+    <a href="/dashboard.html" class="active">Bosh sahifa</a>
+    <a href="/admin.html" id="adminLink" style="display:none;">Admin panel</a>
+  </nav>
+  <div class="userbox">
+    <span id="whoami"></span>
+    <button class="secondary" id="btnChangePw">Parolni o'zgartirish</button>
+    <button class="secondary" id="btnLogout">Chiqish</button>
+  </div>
+</header>
+
+<main>
+  <div class="card" id="addCard">
+    <h2>Yangi buyum qo'shish</h2>
+    <div class="grid">
+      <div class="field"><label>Buyum nomi</label><input id="f_name" required></div>
+      <div class="field"><label>Sana</label><input id="f_date" type="date"></div>
+      <div class="field"><label>Miqdori</label><input id="f_qty" type="number" min="1" value="1"></div>
+      <div class="field"><label>Xona (kabinet)</label><input id="f_room" placeholder="Masalan: 214" required></div>
+      <div class="field"><label>Bo'lim / Kafedra</label><input id="f_dept" placeholder="Masalan: Axborot texnologiyalari kafedrasi" required></div>
+    </div>
+    <div class="field"><label>Izoh</label><textarea id="f_note"></textarea></div>
+    <button id="btnAdd">➕ Qo'shish (RANCH kodi avtomatik yaratiladi)</button>
+    <div class="status" id="addStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>Inventarizatsiya ro'yxati</h2>
+    <div class="filters">
+      <input id="q" placeholder="Qidirish...">
+      <select id="fDept"><option value="">Barcha bo'limlar</option></select>
+      <select id="fRoom"><option value="">Barcha xonalar</option></select>
+      <button class="secondary" id="btnRefresh">Yangilash</button>
+      <button id="btnExport">📊 Excel'ga eksport</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>RANCH kodi</th><th>Nomi</th><th>Sana</th><th>Miqdor</th><th>Xona</th><th>Bo'lim/Kafedra</th><th>Izoh</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="emptyMsg" style="display:none;">Yozuv topilmadi.</div>
+    </div>
+  </div>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

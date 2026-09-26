@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirish — Inventarizatsiya Platformasi</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>🏛️ Inventarizatsiya</h1>
+    <p class="sub">Tizimga kirish uchun login va parolingizni kiriting</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>Login</label>
+        <input id="username" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label>Parol</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" style="width:100%;">Kirish</button>
+      <div class="status err" id="status"></div>
+    </form>
+  </div>
+</div>
+<script src="/js/login.js"></script>
+</body>
+</html>

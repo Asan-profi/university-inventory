@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin panel — Inventarizatsiya</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header>
+  <h1>🏛️ Inventarizatsiya</h1>
+  <nav>
+    <a href="/dashboard.html">Bosh sahifa</a>
+    <a href="/admin.html" class="active">Admin panel</a>
+  </nav>
+  <div class="userbox">
+    <span id="whoami"></span>
+    <button class="secondary" id="btnLogout">Chiqish</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>👤 Foydalanuvchi qo'shish</h2>
+    <div class="grid">
+      <div class="field"><label>Login</label><input id="u_username"></div>
+      <div class="field"><label>Parol</label><input id="u_password" type="password"></div>
+      <div class="field"><label>To'liq ism</label><input id="u_fullname"></div>
+      <div class="field"><label>Rol</label>
+        <select id="u_role">
+          <option value="viewer">Viewer — faqat ko'rish</option>
+          <option value="editor">Editor — qo'shish/tahrirlash</option>
+          <option value="admin">Admin — to'liq huquq</option>
+        </select>
+      </div>
+    </div>
+    <button id="btnAddUser">Foydalanuvchi qo'shish</button>
+    <div class="status" id="userStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>Foydalanuvchilar ro'yxati</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Login</th><th>Ism</th><th>Rol</th><th>Holati</th><th></th></tr></thead>
+        <tbody id="usersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🏢 Bo'lim/kafedralar va xonalar</h2>
+    <div class="row">
+      <div class="field" style="flex:1;min-width:180px;"><label>Yangi bo'lim/kafedra nomi</label><input id="d_name"></div>
+      <button id="btnAddDept">Qo'shish</button>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1;min-width:140px;"><label>Xona raqami</label><input id="r_number"></div>
+      <div class="field" style="flex:1;min-width:180px;"><label>Bo'lim</label><select id="r_dept"></select></div>
+      <button id="btnAddRoom">Qo'shish</button>
+    </div>
+    <div class="grid">
+      <div>
+        <h3 style="font-size:13px;color:var(--sub);">Bo'limlar</h3>
+        <table><tbody id="deptBody"></tbody></table>
+      </div>
+      <div>
+        <h3 style="font-size:13px;color:var(--sub);">Xonalar</h3>
+        <table><tbody id="roomBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📜 Audit jurnali (oxirgi harakatlar)</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Vaqt</th><th>Foydalanuvchi</th><th>Amal</th><th>Tafsilot</th><th>IP</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>
