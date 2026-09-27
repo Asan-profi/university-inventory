@@ -23,15 +23,38 @@
 <main>
   <div class="card" id="addCard">
     <h2>Yangi buyum qo'shish</h2>
+
+    <label>1. Kategoriya tanlang</label>
+    <div class="cat-keyboard" id="catKeyboard"></div>
+    <div class="status err" id="catStatus" style="margin-bottom:10px;"></div>
+
     <div class="grid">
-      <div class="field"><label>Buyum nomi</label><input id="f_name" required></div>
-      <div class="field"><label>Sana</label><input id="f_date" type="date"></div>
+      <div class="field"><label>Jihoz nomi *</label><input id="f_name" required></div>
+      <div class="field"><label>Brend</label><input id="f_brand" placeholder="Masalan: Dell, HP, Lenovo"></div>
+      <div class="field"><label>Model</label><input id="f_model"></div>
+      <div class="field"><label>Texnik tavsifi</label><input id="f_techspec" placeholder="Masalan: i5/16GB/512GB"></div>
       <div class="field"><label>Miqdori</label><input id="f_qty" type="number" min="1" value="1"></div>
-      <div class="field"><label>Xona (kabinet)</label><input id="f_room" placeholder="Masalan: 214" required></div>
-      <div class="field"><label>Bo'lim / Kafedra</label><input id="f_dept" placeholder="Masalan: Axborot texnologiyalari kafedrasi" required></div>
+      <div class="field"><label>O'lchov birligi</label>
+        <select id="f_unit"><option>dona</option><option>komplekt</option><option>metr</option><option>kg</option><option>litr</option></select>
+      </div>
+      <div class="field"><label>Kelgan sana</label><input id="f_date" type="date"></div>
+      <div class="field"><label>Qiymati (so'm)</label><input id="f_price" type="number" min="0" step="1000"></div>
+      <div class="field"><label>Hujjat № (naklad./akt)</label><input id="f_docnum"></div>
+      <div class="field"><label>Yetkazib beruvchi</label><input id="f_supplier"></div>
+      <div class="field"><label>Filial</label><input id="f_branch" placeholder="Masalan: Nukus"></div>
+      <div class="field"><label>Bino</label><input id="f_building" placeholder="Masalan: Asosiy bino"></div>
+      <div class="field"><label>Xona (kabinet) *</label><input id="f_room" required></div>
+      <div class="field"><label>Bo'lim / Kafedra *</label><input id="f_dept" required></div>
+      <div class="field"><label>Mas'ul shaxs (F.I.Sh)</label><input id="f_responsible"></div>
+      <div class="field"><label>Holati</label>
+        <select id="f_condition"><option value="">—</option><option>Yangi</option><option>Yaxshi</option><option>Qoniqarli</option><option>Eskirgan</option><option>Nosoz</option></select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="f_status"><option>Foydalanishda</option><option>Omborda</option><option>Ta'mirda</option><option>Hisobdan chiqarilgan</option></select>
+      </div>
     </div>
     <div class="field"><label>Izoh</label><textarea id="f_note"></textarea></div>
-    <button id="btnAdd">➕ Qo'shish (RANCH kodi avtomatik yaratiladi)</button>
+    <button id="btnAdd">➕ Qo'shish (Inventar raqami avtomatik yaratiladi)</button>
     <div class="status" id="addStatus"></div>
   </div>
 
@@ -41,13 +64,14 @@
       <input id="q" placeholder="Qidirish...">
       <select id="fDept"><option value="">Barcha bo'limlar</option></select>
       <select id="fRoom"><option value="">Barcha xonalar</option></select>
+      <select id="fCat"><option value="">Barcha kategoriyalar</option></select>
       <button class="secondary" id="btnRefresh">Yangilash</button>
       <button id="btnExport">📊 Excel'ga eksport</button>
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>RANCH kodi</th><th>Nomi</th><th>Sana</th><th>Miqdor</th><th>Xona</th><th>Bo'lim/Kafedra</th><th>Izoh</th><th></th>
+          <th>Inventar №</th><th>Nomi</th><th>Kategoriya</th><th>Xona</th><th>Bo'lim</th><th>Mas'ul shaxs</th><th>Status</th><th></th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -55,6 +79,17 @@
     </div>
   </div>
 </main>
+
+<!-- Batafsil modal -->
+<div id="modalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">Buyum tafsilotlari</h2>
+      <button class="secondary" id="modalClose">✕</button>
+    </div>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
 
 <script src="/js/app.js"></script>
 </body>

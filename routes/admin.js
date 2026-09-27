@@ -81,6 +81,41 @@ router.delete('/users/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Kategoriyalar (klassifikator) ----------
+router.get('/categories', (req, res) => {
+  res.json({ categories: db.prepare('SELECT * FROM categories ORDER BY code').all() });
+});
+router.post(
+  '/categories',
+  [
+    body('code').trim().isLength({ min: 2, max: 10 }).matches(/^[A-Za-z0-9]+$/).withMessage('Kod faqat lotin harf/raqamlardan iborat bo\'lishi kerak'),
+    body('name').trim().isLength({ min: 1, max: 100 }),
+    body('example').optional({ checkFalsy: true }).isLength({ max: 150 })
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+    const code = req.body.code.trim().toUpperCase();
+    try {
+      db.prepare('INSERT INTO categories (code, name, example) VALUES (?, ?, ?)')
+        .run(code, req.body.name.trim(), req.body.example || null);
+      logAudit(req.session.user.id, 'category_created', code, req.ip);
+      res.status(201).json({ code });
+    } catch (e) {
+      res.status(409).json({ error: 'Bu kategoriya kodi allaqachon mavjud.' });
+    }
+  }
+);
+router.delete('/categories/:code', (req, res) => {
+  const inUse = db.prepare('SELECT COUNT(*) AS c FROM inventory_items WHERE category_code = ?').get(req.params.code);
+  if (inUse.c > 0) {
+    return res.status(400).json({ error: `Bu kategoriyada ${inUse.c} ta buyum bor, avval ularni o'chiring yoki boshqa kategoriyaga o'tkazing.` });
+  }
+  db.prepare('DELETE FROM categories WHERE code = ?').run(req.params.code);
+  logAudit(req.session.user.id, 'category_deleted', req.params.code, req.ip);
+  res.json({ ok: true });
+});
+
 // ---------- Bo'lim/kafedralar ----------
 router.get('/departments', (req, res) => {
   res.json({ departments: db.prepare('SELECT * FROM departments ORDER BY name').all() });

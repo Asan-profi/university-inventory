@@ -46,6 +46,40 @@ async function loadUsers() {
     </tr>`).join('');
 }
 
+async function loadCategories() {
+  const { categories } = await api('/api/admin/categories');
+  document.getElementById('catBody').innerHTML = categories.map(c => `
+    <tr>
+      <td class="code">${escHtml(c.code)}</td>
+      <td>${escHtml(c.name)}</td>
+      <td>${escHtml(c.example || '')}</td>
+      <td><button class="secondary danger" data-delcat="${escHtml(c.code)}">o'chirish</button></td>
+    </tr>`).join('');
+}
+
+document.getElementById('btnAddCat').addEventListener('click', async () => {
+  const statusEl = document.getElementById('catStatus');
+  const code = document.getElementById('cat_code').value.trim();
+  const name = document.getElementById('cat_name').value.trim();
+  const example = document.getElementById('cat_example').value.trim();
+  if (!code || !name) { setStatus(statusEl, 'Kod va nomi kiritilishi shart.', false); return; }
+  try {
+    await api('/api/admin/categories', { method: 'POST', body: JSON.stringify({ code, name, example }) });
+    setStatus(statusEl, "Kategoriya qo'shildi.", true);
+    ['cat_code', 'cat_name', 'cat_example'].forEach(id => document.getElementById(id).value = '');
+    await loadCategories();
+  } catch (e) { setStatus(statusEl, e.message, false); }
+});
+document.getElementById('catBody').addEventListener('click', async (e) => {
+  if (e.target.dataset.delcat) {
+    if (!confirm("Ushbu kategoriyani o'chirishni tasdiqlaysizmi?")) return;
+    try {
+      await api('/api/admin/categories/' + e.target.dataset.delcat, { method: 'DELETE' });
+      await loadCategories();
+    } catch (err) { alert(err.message); }
+  }
+});
+
 async function loadDeptsRooms() {
   const [{ departments }, { rooms }] = await Promise.all([
     api('/api/admin/departments'),
@@ -138,6 +172,7 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
   try {
     await loadMe();
     await loadUsers();
+    await loadCategories();
     await loadDeptsRooms();
     await loadLog();
   } catch (e) { /* redirect already handled */ }

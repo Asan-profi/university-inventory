@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const Database = require('better-sqlite3');
 
@@ -8,7 +9,7 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// ---------- Sxema ----------
+// ---------- Asosiy sxema ----------
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +32,12 @@ CREATE TABLE IF NOT EXISTS rooms (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   number TEXT UNIQUE NOT NULL,
   department_id INTEGER REFERENCES departments(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  code TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  example TEXT
 );
 
 CREATE TABLE IF NOT EXISTS inventory_items (
@@ -56,6 +63,66 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `);
+
+// ---------- Eski bazalarni yangi maydonlar bilan to'ldirish (migratsiya) ----------
+function ensureColumn(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+const newColumns = [
+  ['inventory_number', 'TEXT'],
+  ['category_code', 'TEXT'],
+  ['brand', 'TEXT'],
+  ['model', 'TEXT'],
+  ['tech_spec', 'TEXT'],
+  ['unit', "TEXT DEFAULT 'dona'"],
+  ['document_number', 'TEXT'],
+  ['supplier', 'TEXT'],
+  ['price', 'REAL'],
+  ['branch', 'TEXT'],
+  ['building', 'TEXT'],
+  ['responsible_person', 'TEXT'],
+  ['condition_status', 'TEXT'],
+  ['status', "TEXT DEFAULT 'Foydalanishda'"],
+  ['akt_number', 'TEXT'],
+  ['akt_generated_at', 'TEXT'],
+  ['akt_scan_path', 'TEXT'],
+  ['akt_scan_original_name', 'TEXT'],
+  ['akt_scan_uploaded_at', 'TEXT']
+];
+newColumns.forEach(([col, def]) => ensureColumn('inventory_items', col, def));
+
+// Eski yozuvlar uchun inventory_number bo'sh bo'lsa, code'dan nusxalab qo'yamiz
+db.exec(`UPDATE inventory_items SET inventory_number = code WHERE inventory_number IS NULL`);
+
+// ---------- Standart kategoriyalarni urug'lash ----------
+const defaultCategories = [
+  ['PC', 'Sistemali blok', 'Dell OptiPlex'],
+  ['MON', 'Monitor', 'Samsung 24"'],
+  ['LTP', 'Noutbuk', 'Lenovo ThinkBook'],
+  ['MFP', 'MFP', 'HP LaserJet MFP'],
+  ['PRN', 'Printer', 'Canon LBP'],
+  ['PRJ', 'Proyektor', 'Epson'],
+  ['TV', 'Televizor / panel', 'Artel 65"'],
+  ['UPS', 'UPS', 'APC'],
+  ['NET', 'Tarmoq uskunalari', 'Switch, router'],
+  ['CAM', 'Kamera', 'IP kamera'],
+  ['AC', 'Konditsioner', 'Artel'],
+  ['DSK', 'Stol', "O'qituvchi stoli"],
+  ['CHR', 'Stul', 'Ofis stuli'],
+  ['CAB', 'Shkaf', 'Hujjatlar shkafi'],
+  ['BRD', 'Doska', 'Markerli doska'],
+  ['OTH', 'Boshqa', 'Boshqa aktiv']
+];
+const insertCat = db.prepare('INSERT OR IGNORE INTO categories (code, name, example) VALUES (?, ?, ?)');
+defaultCategories.forEach(([code, name, example]) => insertCat.run(code, name, example));
+
+// ---------- Yuklanadigan fayllar uchun papka ----------
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'akt-scans');
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ---------- Bosh administratorni urug'lash ----------
 function seedAdmin() {

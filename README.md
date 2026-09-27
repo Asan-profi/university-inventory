@@ -11,6 +11,8 @@ Har bir buyumga avtomatik **RANCH kod** beriladi: `UNIVERSITET_KODI-RANCH-XONA-R
 - **express-session** (SQLite'da saqlanadi) — sessiya boshqaruvi
 - **helmet, express-rate-limit** — xavfsizlik sarlavhalari va brute-force himoyasi
 - **exceljs** — Excel (.xlsx) eksport
+- **docx** — Word (.docx) dalolatnoma generatsiyasi
+- **multer** — skanerlangan dalolatnoma fayllarini yuklash
 
 ## O'rnatish (server/hostingda)
 
@@ -70,12 +72,19 @@ Ilova o'zi HTTPS sertifikatini boshqarmaydi — buni **Nginx** yoki **Caddy** ka
 - `/dashboard.html` — inventar ro'yxati, qo'shish, qidirish/filtrlash, Excel eksport
 - `/admin.html` — faqat `admin` roli uchun: foydalanuvchilar, bo'lim/kafedralar, xonalar, audit jurnali
 
-### RANCH kod formati
+### Inventar raqami formati
 ```
-<UNIVERSITET_KODI>-RANCH-<XONA_RAQAMI>-<4 xonali random raqam>
+<KATEGORIYA_KODI>-<6 xonali tartib raqam>
 ```
-Masalan, `UNIVERSITY_CODE=ITU` va xona `214` bo'lsa: **`ITU-RANCH-214-7391`**
-Kod har doim bazada noyob bo'lishi tekshiriladi, takrorlanish bo'lsa avtomatik qayta generatsiya qilinadi.
+Masalan, kategoriya **PC** (Sistemali blok) bo'lsa birinchi qo'shilgan buyum: **`PC-000001`**, keyingisi (boshqa kategoriyada bo'lsa ham) **`MON-000002`** va h.k. — tartib raqami tizimning ichki ID'siga bog'liq, shuning uchun har doim noyob.
+
+### Kategoriyalar (klassifikator)
+Standart 16 ta kategoriya oldindan kiritilgan (PC, MON, LTP, MFP, PRN, PRJ, TV, UPS, NET, CAM, AC, DSK, CHR, CAB, BRD, OTH). Admin panelda istalgancha yangi kategoriya qo'shish yoki o'chirish mumkin (band kategoriya — ya'ni ichida buyum bor — o'chirilmaydi, avval buyumlarni ko'chirish/o'chirish kerak).
+
+### Dalolatnoma (Akt) tizimi
+- Har bir buyumga **Mas'ul shaxs** kiritilgach, "Batafsil" oynasidan **"Dalolatnoma (Word) yaratish/yuklab olish"** tugmasi orqali rasmiy `.docx` hujjat avtomatik generatsiya qilinadi (`AKT-000001` kabi raqam bilan, imzo joylari bilan).
+- Dalolatnomani chop etib, mas'ul shaxslarga imzo qo'ydirgandan so'ng, uni skanerlab (PDF/JPG/PNG, 15MB gacha) tizimga **qayta yuklash** mumkin — shu oynadagi "Skanerlangan dalolatnomani yuklash" tugmasi orqali.
+- Yuklangan skan istalgan vaqt "Yuklangan skanerni ko'rish" tugmasi orqali ko'rish/yuklab olish mumkin.
 
 ## Loyihaviy tuzilma
 ```

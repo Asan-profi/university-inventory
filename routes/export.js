@@ -7,22 +7,27 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/excel', async (req, res) => {
-  const { q, room_id, department_id } = req.query;
+  const { q, room_id, department_id, category_code, status } = req.query;
   let sql = `
-    SELECT i.code, i.name, i.quantity, i.item_date, r.number AS room_number,
-           d.name AS department_name, i.note, i.created_at
+    SELECT i.inventory_number, i.category_code, c.name AS category_name, i.name, i.brand, i.model,
+           i.tech_spec, i.quantity, i.unit, i.item_date, i.price, i.document_number, i.supplier,
+           i.branch, i.building, r.number AS room_number, d.name AS department_name,
+           i.responsible_person, i.condition_status, i.status, i.note, i.created_at
     FROM inventory_items i
     LEFT JOIN rooms r ON r.id = i.room_id
     LEFT JOIN departments d ON d.id = i.department_id
+    LEFT JOIN categories c ON c.code = i.category_code
     WHERE 1=1`;
   const params = [];
   if (q) {
-    sql += ` AND (i.name LIKE ? OR i.code LIKE ? OR r.number LIKE ? OR d.name LIKE ?)`;
+    sql += ` AND (i.name LIKE ? OR i.inventory_number LIKE ? OR r.number LIKE ? OR d.name LIKE ? OR i.responsible_person LIKE ?)`;
     const like = `%${q}%`;
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like);
   }
   if (room_id) { sql += ` AND i.room_id = ?`; params.push(room_id); }
   if (department_id) { sql += ` AND i.department_id = ?`; params.push(department_id); }
+  if (category_code) { sql += ` AND i.category_code = ?`; params.push(category_code); }
+  if (status) { sql += ` AND i.status = ?`; params.push(status); }
   sql += ` ORDER BY i.created_at DESC`;
 
   const rows = db.prepare(sql).all(...params);
@@ -33,19 +38,33 @@ router.get('/excel', async (req, res) => {
 
   const sheet = workbook.addWorksheet('Inventarizatsiya');
   sheet.columns = [
-    { header: 'RANCH kodi', key: 'code', width: 24 },
-    { header: 'Nomi', key: 'name', width: 30 },
-    { header: 'Miqdori', key: 'quantity', width: 10 },
-    { header: 'Sana', key: 'item_date', width: 14 },
-    { header: 'Xona', key: 'room_number', width: 14 },
-    { header: "Bo'lim/Kafedra", key: 'department_name', width: 30 },
-    { header: 'Izoh', key: 'note', width: 30 },
-    { header: "Qo'shilgan sana", key: 'created_at', width: 20 }
+    { header: 'Inventar №', key: 'inventory_number', width: 16 },
+    { header: 'Kategoriya kodi', key: 'category_code', width: 12 },
+    { header: 'Kategoriya nomi', key: 'category_name', width: 18 },
+    { header: 'Jihoz nomi', key: 'name', width: 26 },
+    { header: 'Brend', key: 'brand', width: 14 },
+    { header: 'Model', key: 'model', width: 16 },
+    { header: 'Texnik tavsifi', key: 'tech_spec', width: 22 },
+    { header: 'Miqdori', key: 'quantity', width: 9 },
+    { header: "O'lchov birligi", key: 'unit', width: 12 },
+    { header: 'Kelgan sana', key: 'item_date', width: 13 },
+    { header: 'Qiymati', key: 'price', width: 13 },
+    { header: 'Hujjat №', key: 'document_number', width: 13 },
+    { header: 'Yetkazib beruvchi', key: 'supplier', width: 18 },
+    { header: 'Filial', key: 'branch', width: 12 },
+    { header: 'Bino', key: 'building', width: 14 },
+    { header: 'Xona', key: 'room_number', width: 10 },
+    { header: "Bo'lim/Kafedra", key: 'department_name', width: 26 },
+    { header: "Mas'ul shaxs", key: 'responsible_person', width: 20 },
+    { header: 'Holati', key: 'condition_status', width: 12 },
+    { header: 'Status', key: 'status', width: 16 },
+    { header: 'Izoh', key: 'note', width: 24 },
+    { header: "Qo'shilgan sana", key: 'created_at', width: 18 }
   ];
   sheet.getRow(1).font = { bold: true };
   sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFE8DC' } };
   rows.forEach((r) => sheet.addRow(r));
-  sheet.autoFilter = { from: 'A1', to: 'H1' };
+  sheet.autoFilter = { from: 'A1', to: 'V1' };
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `inventarizatsiya_${new Date().toISOString().slice(0, 10)}.xlsx`;
