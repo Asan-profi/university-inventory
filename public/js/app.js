@@ -167,7 +167,7 @@ async function openDetail(id) {
     </div>
     <div class="modal-actions">
       <button id="btnAkt">📄 Dalolatnoma (Word) yaratish/yuklab olish</button>
-      ${i.akt_scan_path ? `<button class="secondary" id="btnViewScan">🖼️ Yuklangan skanerni ko'rish</button>` : ''}
+      ${i.person_scan_path ? `<button class="secondary" id="btnViewScan">🖼️ Yuklangan skanerni ko'rish</button>` : ''}
       ${currentUser.role !== 'viewer' ? `
         <label class="secondary" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1px solid var(--accent);border-radius:6px;cursor:pointer;">
           📎 Imzolangan dalolatnomani skanerlab yuklash
