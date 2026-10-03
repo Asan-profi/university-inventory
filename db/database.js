@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS person_akts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  responsible_person TEXT UNIQUE NOT NULL,
+  akt_number TEXT UNIQUE,
+  generated_at TEXT,
+  scan_path TEXT,
+  scan_original_name TEXT,
+  scan_uploaded_at TEXT 
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER,
