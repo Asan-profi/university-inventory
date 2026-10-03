@@ -36,12 +36,26 @@ function logAudit(userId, action, details, ip) {
 
 const ITEM_SELECT = `
   SELECT i.*, r.number AS room_number, d.name AS department_name,
-         c.name AS category_name
+         c.name AS category_name,
+         pa.akt_number AS person_akt_number,
+         pa.scan_path AS person_scan_path,
+         pa.scan_uploaded_at AS person_scan_uploaded_at
   FROM inventory_items i
   LEFT JOIN rooms r ON r.id = i.room_id
   LEFT JOIN departments d ON d.id = i.department_id
   LEFT JOIN categories c ON c.code = i.category_code
+  LEFT JOIN person_akts pa ON pa.responsible_person = i.responsible_person
 `;
+
+// Mas'ul shaxs bo'yicha dalolatnoma yozuvini topish yoki yaratish
+function getOrCreatePersonAkt(personName) {
+  let row = db.prepare('SELECT * FROM person_akts WHERE responsible_person = ?').get(personName);
+  if (!row) {
+    const info = db.prepare('INSERT INTO person_akts (responsible_person) VALUES (?)').run(personName);
+    row = db.prepare('SELECT * FROM person_akts WHERE id = ?').get(info.lastInsertRowid);
+  }
+  return row;
+}
 
 // ---------- Ro'yxat (qidiruv/filtr bilan) ----------
 router.get('/', (req, res) => {
@@ -196,69 +210,89 @@ router.put(
 router.delete('/:id', requireRole('admin'), (req, res) => {
   const existing = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Topilmadi.' });
-  if (existing.akt_scan_path) {
-    const full = path.join(uploadsDir, path.basename(existing.akt_scan_path));
-    fs.existsSync(full) && fs.unlinkSync(full);
-  }
   db.prepare('DELETE FROM inventory_items WHERE id = ?').run(req.params.id);
+
+  // Agar bu mas'ul shaxsning so'nggi jihozi bo'lsa, umumiy dalolatnoma/skan yozuvini ham tozalaymiz
+  if (existing.responsible_person) {
+    const remaining = db.prepare('SELECT COUNT(*) AS c FROM inventory_items WHERE responsible_person = ?').get(existing.responsible_person);
+    if (remaining.c === 0) {
+      const personAkt = db.prepare('SELECT * FROM person_akts WHERE responsible_person = ?').get(existing.responsible_person);
+      if (personAkt) {
+        if (personAkt.scan_path) {
+          const full = path.join(uploadsDir, path.basename(personAkt.scan_path));
+          fs.existsSync(full) && fs.unlinkSync(full);
+        }
+        db.prepare('DELETE FROM person_akts WHERE id = ?').run(personAkt.id);
+      }
+    }
+  }
+
   logAudit(req.session.user.id, 'item_deleted', existing.inventory_number, req.ip);
   res.json({ ok: true });
 });
 
-// ---------- Dalolatnoma (Word) generatsiya qilish ----------
+// ---------- Dalolatnoma (Word) generatsiya qilish — mas'ul shaxsning BARCHA jihozlari bitta faylda ----------
 router.get('/:id/akt.docx', async (req, res) => {
-  const item = db.prepare(ITEM_SELECT + ` WHERE i.id = ?`).get(req.params.id);
+  const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(req.params.id);
   if (!item) return res.status(404).json({ error: 'Topilmadi.' });
   if (!item.responsible_person) {
     return res.status(400).json({ error: "Dalolatnoma yaratish uchun avval Mas'ul shaxs kiritilishi kerak." });
   }
 
-  let aktNumber = item.akt_number;
+  const personAkt = getOrCreatePersonAkt(item.responsible_person);
+  let aktNumber = personAkt.akt_number;
   if (!aktNumber) {
-    aktNumber = formatAktNumber(item.id);
-    db.prepare(`UPDATE inventory_items SET akt_number = ?, akt_generated_at = datetime('now') WHERE id = ?`)
-      .run(aktNumber, item.id);
-    logAudit(req.session.user.id, 'akt_generated', aktNumber, req.ip);
+    aktNumber = formatAktNumber(personAkt.id);
+    db.prepare(`UPDATE person_akts SET akt_number = ?, generated_at = datetime('now') WHERE id = ?`)
+      .run(aktNumber, personAkt.id);
+    logAudit(req.session.user.id, 'akt_generated', `${aktNumber} (${item.responsible_person})`, req.ip);
   }
 
+  // Shu mas'ul shaxsga tegishli BARCHA jihozlarni yig'amiz
+  const items = db.prepare(ITEM_SELECT + ` WHERE i.responsible_person = ? ORDER BY i.created_at`).all(item.responsible_person);
+
   const today = new Date().toLocaleDateString('uz-UZ');
-  const row = (label, value) => new TableRow({
-    children: [
-      new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })] }),
-      new TableCell({ width: { size: 65, type: WidthType.PERCENTAGE }, children: [new Paragraph(String(value ?? '—'))] })
-    ]
+  const headerCell = (text) => new TableCell({
+    shading: { fill: 'EFE8DC' },
+    children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })]
   });
+  const cell = (text) => new TableCell({ children: [new Paragraph(String(text ?? '—'))] });
+
+  const headerRow = new TableRow({
+    children: ['№', 'Inventar №', 'Nomi', 'Brend/Model', 'Miqdor', 'Xona', "Bo'lim", 'Qiymati', 'Holati'].map(headerCell)
+  });
+  const itemRows = items.map((it, idx) => new TableRow({
+    children: [
+      cell(idx + 1),
+      cell(it.inventory_number),
+      cell(it.name),
+      cell([it.brand, it.model].filter(Boolean).join(' / ') || '—'),
+      cell(`${it.quantity} ${it.unit || 'dona'}`),
+      cell(it.room_number),
+      cell(it.department_name),
+      cell(it.price ? Number(it.price).toLocaleString('uz-UZ') : '—'),
+      cell(it.condition_status)
+    ]
+  }));
+
+  const totalValue = items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
   const doc = new Document({
     sections: [{
+      properties: { page: { size: { orientation: 'landscape' } } },
       children: [
-        new Paragraph({ text: 'MODDIY-TEXNIKA VOSITASINI QABUL QILISH-TOPSHIRISH DALOLATNOMASI', heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: 'MODDIY-TEXNIKA VOSITALARINI QABUL QILISH-TOPSHIRISH DALOLATNOMASI', heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
         new Paragraph({ text: `№ ${aktNumber}                                                                    Sana: ${today}`, alignment: AlignmentType.CENTER }),
         new Paragraph({ text: '' }),
-        new Paragraph('Ushbu dalolatnoma quyidagi moddiy-texnika vositasining (jihozning) qabul qilib olinishini tasdiqlaydi:'),
+        new Paragraph(`Ushbu dalolatnoma asosida quyida ko'rsatilgan mas'ul shaxsga jami ${items.length} ta moddiy-texnika vositasi (jihoz) topshirildi:`),
+        new Paragraph({ children: [new TextRun({ text: `Mas'ul shaxs: ${item.responsible_person}`, bold: true })] }),
         new Paragraph({ text: '' }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            row('Inventar raqami', item.inventory_number),
-            row('Kategoriya', `${item.category_code} — ${item.category_name || ''}`),
-            row('Jihoz nomi', item.name),
-            row('Brend', item.brand),
-            row('Model', item.model),
-            row('Texnik tavsifi', item.tech_spec),
-            row('Miqdori', `${item.quantity} ${item.unit || 'dona'}`),
-            row('Qiymati (so\'m)', item.price),
-            row('Hujjat №', item.document_number),
-            row('Yetkazib beruvchi', item.supplier),
-            row('Filial', item.branch),
-            row('Bino', item.building),
-            row('Xona', item.room_number),
-            row("Bo'lim/Kafedra", item.department_name),
-            row('Holati', item.condition_status),
-            row('Status', item.status),
-            row('Izoh', item.note)
-          ]
+          rows: [headerRow, ...itemRows]
         }),
+        new Paragraph({ text: '' }),
+        new Paragraph({ children: [new TextRun({ text: `Jami qiymati: ${totalValue.toLocaleString('uz-UZ')} so'm`, bold: true })] }),
         new Paragraph({ text: '' }),
         new Paragraph({ text: '' }),
         new Paragraph(`Topshirdi: _________________________  (F.I.Sh, imzo)          Sana: _______________`),
@@ -270,33 +304,37 @@ router.get('/:id/akt.docx', async (req, res) => {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const filename = `dalolatnoma_${item.inventory_number}.docx`;
+  const safeName = item.responsible_person.replace(/[^\p{L}\p{N}]+/gu, '_');
+  const filename = `dalolatnoma_${safeName}_${aktNumber}.docx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
 });
 
-// ---------- Skanerlangan dalolatnomani yuklash ----------
+// ---------- Skanerlangan dalolatnomani yuklash (mas'ul shaxsning umumiy hujjati sifatida) ----------
 router.post('/:id/akt-scan', requireRole('admin', 'editor'), (req, res) => {
   upload.single('scan')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message || 'Fayl yuklashda xatolik.' });
     const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(req.params.id);
     if (!item) return res.status(404).json({ error: 'Topilmadi.' });
+    if (!item.responsible_person) return res.status(400).json({ error: "Avval Mas'ul shaxs kiritilishi kerak." });
     if (!req.file) return res.status(400).json({ error: 'Fayl tanlanmagan.' });
 
+    const personAkt = getOrCreatePersonAkt(item.responsible_person);
+
     // Eski faylni o'chirish
-    if (item.akt_scan_path) {
-      const oldFull = path.join(uploadsDir, path.basename(item.akt_scan_path));
+    if (personAkt.scan_path) {
+      const oldFull = path.join(uploadsDir, path.basename(personAkt.scan_path));
       fs.existsSync(oldFull) && fs.unlinkSync(oldFull);
     }
 
     db.prepare(`
-      UPDATE inventory_items
-      SET akt_scan_path = ?, akt_scan_original_name = ?, akt_scan_uploaded_at = datetime('now')
+      UPDATE person_akts
+      SET scan_path = ?, scan_original_name = ?, scan_uploaded_at = datetime('now')
       WHERE id = ?
-    `).run(req.file.filename, req.file.originalname, req.params.id);
+    `).run(req.file.filename, req.file.originalname, personAkt.id);
 
-    logAudit(req.session.user.id, 'akt_scan_uploaded', item.inventory_number, req.ip);
+    logAudit(req.session.user.id, 'akt_scan_uploaded', item.responsible_person, req.ip);
     res.json({ ok: true });
   });
 });
@@ -304,8 +342,10 @@ router.post('/:id/akt-scan', requireRole('admin', 'editor'), (req, res) => {
 // ---------- Skanerlangan dalolatnomani ko'rish/yuklab olish ----------
 router.get('/:id/akt-scan', (req, res) => {
   const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(req.params.id);
-  if (!item || !item.akt_scan_path) return res.status(404).json({ error: 'Skanerlangan fayl topilmadi.' });
-  const full = path.join(uploadsDir, path.basename(item.akt_scan_path));
+  if (!item || !item.responsible_person) return res.status(404).json({ error: 'Skanerlangan fayl topilmadi.' });
+  const personAkt = db.prepare('SELECT * FROM person_akts WHERE responsible_person = ?').get(item.responsible_person);
+  if (!personAkt || !personAkt.scan_path) return res.status(404).json({ error: 'Skanerlangan fayl topilmadi.' });
+  const full = path.join(uploadsDir, path.basename(personAkt.scan_path));
   if (!fs.existsSync(full)) return res.status(404).json({ error: 'Fayl serverda topilmadi.' });
   res.sendFile(full);
 });
